@@ -9,7 +9,7 @@ CFLAGS=-O2 -ggdb3 -DAO_USE_PENTIUM4_INSTRS -std=gnu99
 %.s : %.c
 	gcc $(CFLAGS) -fverbose-asm -S -o $@ $<
 
-all : main
+all : main main_pipe
 
 clean:
 	rm main.o fifo.o main
@@ -17,4 +17,7 @@ clean:
 main.o fifo.o: fifo.h
 
 main : main.o fifo.o
-	gcc -o $@ $^ -lpthread
+	gcc -o $@ $^ -lpthread -static
+
+main_pipe: main_pipe.o
+	gcc -o $@ $^ -lpthread -static

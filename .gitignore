@@ -1,2 +1,3 @@
 *.o
 main
+main_pipe
