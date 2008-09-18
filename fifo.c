@@ -14,7 +14,7 @@
 
 #include "fifo.h"
 
-#define SPIN_COUNT 256
+#define SPIN_COUNT 0
 
 __attribute__((aligned(64)))
 int fifo_reader_exchange_count;
@@ -95,6 +95,7 @@ void fifo_window_reader_wait(struct fifo_window *window)
 		return;
 
 	for (count = SPIN_COUNT; count > 0; count--) {
+		abort();
 		AO_nop_full();
 		if (fifo->head != head)
 			return;

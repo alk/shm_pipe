@@ -1,7 +1,7 @@
 
 OBJS=fifo.c
-#CFLAGS=-O0 -Wall -pedantic -ggdb3
-CFLAGS=-O2 -ggdb3 -DAO_USE_PENTIUM4_INSTRS
+#CFLAGS=-O0 -Wall -pedantic -ggdb3 -std=gnu99
+CFLAGS=-O2 -ggdb3 -DAO_USE_PENTIUM4_INSTRS -std=gnu99
 
 %.o : %.c
 	gcc $(CFLAGS) -c -o $@ $<

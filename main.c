@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <semaphore.h>
 #include <sched.h>
 #include <unistd.h>
@@ -53,13 +54,16 @@ void move_to_cpu(int number)
 		fatal_perror("sched_setaffinity");
 }
 
-#define READER_BATCH 512
+#define READER_BATCH 3076
 
 static
 void *reader_thread(void *dummy)
 {
 	struct fifo_window window;
-	int sum;
+	unsigned long long count=0;
+	int sum=0;
+	unsigned short xsubi[3];
+	memset(xsubi, 0, sizeof(xsubi));
 
 	printf("reader's pid is %d\n", gettid());
 #if SETAFFINITY
@@ -71,7 +75,7 @@ void *reader_thread(void *dummy)
 #endif
 
 	fifo_window_init_reader(fifo, &window);
-	while (!done_flag) {
+	while (1) {
 		int *ptr;
 		unsigned len, i;
 
@@ -83,6 +87,8 @@ void *reader_thread(void *dummy)
 		fifo_window_exchange_reader(&window);
 
 		if (window.len < 4) {
+			if (done_flag)
+				break;
 			fifo_window_reader_wait(&window);
 			continue;
 		}
@@ -93,19 +99,22 @@ void *reader_thread(void *dummy)
 			len = READER_BATCH;
 		fifo_window_eat_span(&window, len*sizeof(int));
 
-		for (i = 0; i < len; i++)
-			sum += ptr[i] % 0x3461d349;
+		for (i = 0; i < len; i++, count++)
+			sum |= ptr[i] ^  nrand48(xsubi);
 	}
+	printf("sum = 0x%08x\ncount = %lld\n", sum, count);
 	return (void *)(intptr_t)sum;
 }
 
-#define WRITER_BATCH 256
+#define WRITER_BATCH 3076
 
 static
 void *writer_thread(void *dummy)
 {
 	struct fifo_window window;
 	unsigned count = 0;
+	unsigned short xsubi[3];
+	memset(xsubi, 0, sizeof(xsubi));
 
 	printf("writer's pid is %d\n", gettid());
 #if SETAFFINITY
@@ -117,7 +126,7 @@ void *writer_thread(void *dummy)
 #endif
 
 	fifo_window_init_writer(fifo, &window);
-	while (count < 2000000000U) {
+	while (count < 300000000U) {
 		int *ptr;
 		unsigned len, i;
 		fifo_window_exchange_writer(&window);
@@ -138,7 +147,7 @@ void *writer_thread(void *dummy)
 			len = WRITER_BATCH;
 		fifo_window_eat_span(&window, len*sizeof(int));
 		for (i=0;i<len;i++,count++)
-			ptr[i] = count % 0x5ffefefe;
+			ptr[i] = nrand48(xsubi);
 	}
 	done_flag = 1;
 	fifo_window_exchange_writer(&window);
