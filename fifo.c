@@ -37,7 +37,7 @@ void fifo_window_init_reader(struct futex_fifo *fifo, struct fifo_window *window
 {
 	window->fifo = fifo;
 	window->reader = 1;
-	window->old_start = window->start = fifo->tail % FIFO_SIZE;
+	window->start = fifo->tail % FIFO_SIZE;
 	window->len = 0;
 }
 
@@ -45,7 +45,7 @@ void fifo_window_init_writer(struct futex_fifo *fifo, struct fifo_window *window
 {
 	window->fifo = fifo;
 	window->reader = 0;
-	window->old_start = window->start = fifo->head % FIFO_SIZE;
+	window->start = fifo->head % FIFO_SIZE;
 	window->len = 0;
 }
 
@@ -159,10 +159,10 @@ void fifo_notify_invalid_window(struct fifo_window *window, int reader)
 }
 
 static inline
-unsigned check_window_free_count(struct fifo_window *window, int reader)
+unsigned check_window_free_count(struct fifo_window *window, unsigned old_start, int reader)
 {
 	unsigned start = window->start;
-	unsigned free_count = start - window->old_start;
+	unsigned free_count = start - old_start;
 	if (free_count > FIFO_SIZE) {
 		fifo_notify_invalid_window(window, reader);
 		abort();
@@ -173,8 +173,8 @@ unsigned check_window_free_count(struct fifo_window *window, int reader)
 void fifo_window_exchange_reader(struct fifo_window *window)
 {
 	struct futex_fifo *fifo = window->fifo;
-	unsigned free_count = check_window_free_count(window, 1);
 	unsigned tail = fifo->tail;
+	unsigned free_count = check_window_free_count(window, tail, 1);
 	unsigned head = fifo->head;
 	unsigned old_tail = tail;
 
@@ -190,7 +190,6 @@ void fifo_window_exchange_reader(struct fifo_window *window)
 		window->start = tail % FIFO_SIZE;
 	}
 
-	window->old_start = window->start;
 	fifo_reader_exchange_count++;
 	futex_fifo_notify_writer(fifo, old_tail);
 }
@@ -198,8 +197,8 @@ void fifo_window_exchange_reader(struct fifo_window *window)
 void fifo_window_exchange_writer(struct fifo_window *window)
 {
 	struct futex_fifo *fifo = window->fifo;
-	unsigned free_count = check_window_free_count(window, 0);
 	unsigned head = fifo->head;
+	unsigned free_count = check_window_free_count(window, head, 0);
 	unsigned tail = fifo->tail;
 	unsigned old_head = head;
 
@@ -215,7 +214,6 @@ void fifo_window_exchange_writer(struct fifo_window *window)
 		window->start = head % FIFO_SIZE;
 	}
 
-	window->old_start = window->start;
 	fifo_writer_exchange_count++;
 	futex_fifo_notify_reader(fifo, old_head);
 }

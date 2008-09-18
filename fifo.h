@@ -8,19 +8,18 @@ struct futex_fifo {
 	unsigned tail;
 	unsigned head_wait;
 	unsigned __pad2[30];
-	char data[4];
+	char data[0];
 };
 
 struct fifo_window {
 	struct futex_fifo *fifo;
 	unsigned start, len;
-	unsigned old_start;
 	int reader;
 };
 
-#define FIFO_TOTAL_SIZE (65536+256+8)
+#define FIFO_TOTAL_SIZE (65536+sizeof(struct futex_fifo))
 
-#define FIFO_SIZE (FIFO_TOTAL_SIZE-sizeof(struct futex_fifo)-4)
+#define FIFO_SIZE (FIFO_TOTAL_SIZE-sizeof(struct futex_fifo))
 
 static inline
 void *fifo_window_peek_span(struct fifo_window *window, unsigned *span_len)
