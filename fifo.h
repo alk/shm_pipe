@@ -18,7 +18,7 @@ struct fifo_window {
 	int reader;
 };
 
-#define FIFO_TOTAL_SIZE 32768
+#define FIFO_TOTAL_SIZE (65536+256+8)
 
 #define FIFO_SIZE (FIFO_TOTAL_SIZE-sizeof(struct futex_fifo)-4)
 

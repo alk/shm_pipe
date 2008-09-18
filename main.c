@@ -15,7 +15,7 @@
 static
 struct futex_fifo *fifo;
 
-#define SETAFFINITY 0
+#define SETAFFINITY 1
 #define SERIALIZE 0
 
 #if SERIALIZE
@@ -54,7 +54,7 @@ void move_to_cpu(int number)
 		fatal_perror("sched_setaffinity");
 }
 
-#define READER_BATCH 3076
+#define READER_BATCH 4096
 
 static
 void *reader_thread(void *dummy)
@@ -106,7 +106,7 @@ void *reader_thread(void *dummy)
 	return (void *)(intptr_t)sum;
 }
 
-#define WRITER_BATCH 3076
+#define WRITER_BATCH 4096
 
 static
 void *writer_thread(void *dummy)
@@ -161,6 +161,8 @@ int main()
 {
 	int rv;
 	pthread_t reader, writer;
+
+	printf("FIFO_SIZE = %d\n", FIFO_SIZE);
 
 #if SERIALIZE
 	rv = sem_init(&reader_sem, 0, 0);
