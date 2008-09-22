@@ -61,7 +61,7 @@ void futex_wait(void *addr, unsigned value)
 {
 	int rv;
 	do {
-		rv = futex(addr, FUTEX_WAIT, value, 0, 0, 0);
+		rv = futex(addr, FUTEX_WAIT | FUTEX_PRIVATE_FLAG, value, 0, 0, 0);
 	} while (rv && errno == EINTR);
 	if (rv) {
 		if (errno == EWOULDBLOCK)
@@ -75,7 +75,7 @@ static
 void futex_wake(void *addr)
 {
 	int rv;
-	rv = futex(addr, FUTEX_WAKE, 1, 0, 0, 0);
+	rv = futex(addr, FUTEX_WAKE | FUTEX_PRIVATE_FLAG, 1, 0, 0, 0);
 	if (rv < 0) {
 		perror("futex_wake");
 		exit(1);
