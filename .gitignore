@@ -1,3 +1,6 @@
 *.o
-main
+main_futex
+main_emulation
+main_eventfd
+main_efd_nonblock
 main_pipe

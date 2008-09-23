@@ -15,10 +15,16 @@
 
 #include "fifo.h"
 
+#ifndef FIFO_OVERRIDE
+
 #define USE_EVENTFD 1
 #define EVENTFD_NONBLOCKING 0
 #define USE_EVENTFD_EMULATION 0
+
+#endif
+
 #define NO_LIBC_EVENTFD
+
 
 #if USE_EVENTFD
 #include <poll.h>
@@ -80,6 +86,7 @@ int eventfd_create(struct shm_fifo_eventfd_storage *this)
 	this->fd = fds[0];
 	this->write_side_fd = fds[1];
 	file_flags_change(this->write_side_fd, -1, O_NONBLOCK);
+	fprintf(stderr, "eventfd_emulation:eventfd_create:success\n");
 	return 0;
 }
 
@@ -104,6 +111,7 @@ int eventfd_create(struct shm_fifo_eventfd_storage *this)
 	file_flags_change(fd, -1, O_NONBLOCK);
 #endif
 	this->fd = fd;
+	fprintf(stderr, "eventfd:eventfd_create:success\n");
 	return 0;
 }
 
@@ -133,6 +141,8 @@ int fifo_create(struct shm_fifo **ptr)
 			free(fifo);
 			return 0;
 		}
+#else
+		fprintf(stderr, "fifo_create: using futex implementation\n");
 #endif // USE_EVENTFD
 	}
 	fifo->head_wait = fifo->tail_wait = 0xffffffff;
