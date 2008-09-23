@@ -24,7 +24,7 @@
 #include <poll.h>
 
 #if USE_EVENTFD_EMULATION
-typedef uint8_t eventfd_t;
+typedef uint32_t eventfd_t;
 
 #else /* USE_EVENTFD_EMULATION */
 
@@ -68,6 +68,30 @@ int file_flags_change(int fd, int and_mask, int or_mask)
 	return fcntl(fd, F_SETFL, (long) &flags);
 }
 
+#if USE_EVENTFD_EMULATION
+static
+int eventfd_create(struct shm_fifo_eventfd_storage *this)
+{
+	int fds[2];
+	int rv;
+	rv = pipe(fds);
+	if (rv < 0)
+		return rv;
+	this->fd = fds[0];
+	this->write_side_fd = fds[1];
+	file_flags_change(this->write_side_fd, -1, O_NONBLOCK);
+	return 0;
+}
+
+static
+void eventfd_release(struct shm_fifo_eventfd_storage *this)
+{
+	close(this->fd);
+	close(this->write_side_fd);
+}
+
+#else /* !USE_EVENTFD_EMULATION */
+
 static
 int eventfd_create(struct shm_fifo_eventfd_storage *this)
 {
@@ -88,7 +112,8 @@ void eventfd_release(struct shm_fifo_eventfd_storage *this)
 {
 	close(this->fd);
 }
-#endif
+#endif /* !USE_EVENTFD_EMULATION */
+#endif /* USE_EVENTFD */
 
 int fifo_create(struct shm_fifo **ptr)
 {
@@ -131,7 +156,32 @@ void fifo_window_init_writer(struct shm_fifo *fifo, struct fifo_window *window)
 	window->len = 0;
 }
 
-#if USE_EVENTFD
+#if USE_EVENTFD && USE_EVENTFD_EMULATION
+static
+void eventfd_wait(struct shm_fifo_eventfd_storage *eventfd, unsigned *addr, unsigned wait_value)
+{
+	if (*addr != wait_value)
+		return;
+	eventfd_t buf[8];
+	int rv;
+again:
+	rv = read(eventfd->fd, buf, sizeof(buf));
+	if (rv < 0) {
+		if (errno == EINTR)
+			goto again;
+		perror("eventfd_wait:read");
+		abort();
+	}
+}
+
+static
+void eventfd_wake(struct shm_fifo_eventfd_storage *eventfd)
+{
+	eventfd_t value = 1;
+	write(eventfd->write_side_fd, &value, sizeof(value));
+}
+
+#elif USE_EVENTFD
 static
 void eventfd_wait(struct shm_fifo_eventfd_storage *eventfd, unsigned *addr, unsigned wait_value)
 {

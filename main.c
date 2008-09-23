@@ -15,7 +15,7 @@
 static
 struct shm_fifo *fifo;
 
-#define SETAFFINITY 0
+#define SETAFFINITY 1
 #define SERIALIZE 0
 
 #if SERIALIZE
