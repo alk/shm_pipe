@@ -15,15 +15,17 @@
 static
 struct shm_fifo *fifo;
 
-#define SETAFFINITY 1
+static
+int setaffinity;
+static
+int serialize;
+
 #define SERIALIZE 0
 
-#if SERIALIZE
 static
 sem_t reader_sem;
 static
 sem_t writer_sem;
-#endif
 
 int done_flag;
 
@@ -66,23 +68,21 @@ void *reader_thread(void *dummy)
 	memset(xsubi, 0, sizeof(xsubi));
 
 	printf("reader's pid is %d\n", gettid());
-#if SETAFFINITY
-	move_to_cpu(0);
-#endif
+	if (setaffinity)
+		move_to_cpu(0);
 
-#if SERIALIZE
-	sem_wait(&reader_sem);
-#endif
+	if (serialize)
+		sem_wait(&reader_sem);
 
 	fifo_window_init_reader(fifo, &window);
 	while (1) {
 		int *ptr;
 		unsigned len, i;
 
-#if SERIALIZE
-		sem_post(&writer_sem);
-		sem_wait(&reader_sem);
-#endif
+		if (serialize) {
+			sem_post(&writer_sem);
+			sem_wait(&reader_sem);
+		}
 
 		fifo_window_exchange_reader(&window);
 
@@ -117,13 +117,11 @@ void *writer_thread(void *dummy)
 	memset(xsubi, 0, sizeof(xsubi));
 
 	printf("writer's pid is %d\n", gettid());
-#if SETAFFINITY
-	move_to_cpu(1);
-#endif
+	if (setaffinity)
+		move_to_cpu(1);
 
-#if SERIALIZE
-	sem_wait(&writer_sem);
-#endif
+	if (serialize)
+		sem_wait(&writer_sem);
 
 	fifo_window_init_writer(fifo, &window);
 	while (count < 300000000U) {
@@ -131,10 +129,10 @@ void *writer_thread(void *dummy)
 		unsigned len, i;
 		fifo_window_exchange_writer(&window);
 
-#if SERIALIZE
-		sem_post(&reader_sem);
-		sem_wait(&writer_sem);
-#endif
+		if (serialize) {
+			sem_post(&reader_sem);
+			sem_wait(&writer_sem);
+		}
 
 		if (window.len < 4) {
 			fifo_window_writer_wait(&window);
@@ -151,28 +149,56 @@ void *writer_thread(void *dummy)
 	}
 	done_flag = 1;
 	fifo_window_exchange_writer(&window);
-#if SERIALIZE
-	sem_post(&reader_sem);
-#endif
+	if (serialize)
+		sem_post(&reader_sem);
 	return 0;
 }
 
-int main()
+static
+char *usage_text =
+	"Usage: %s [options]\n"
+	"Benchmark shared memory fifo implementation.\n"
+	"  -a\tset affinity for dual- core or CPU machine\n"
+	"  -s\tserialize processing for debugging\n"
+	"\n";
+
+static
+void usage(char **argv)
+{
+	fprintf(stderr, usage_text, argv[0]);
+}
+
+int main(int argc, char **argv)
 {
 	int rv;
 	pthread_t reader, writer;
+	int optchar;
+
+	while ((optchar = getopt(argc, argv, "as")) >= 0) {
+		switch (optchar) {
+		case 'a':
+			setaffinity = 1;
+			break;
+		case 's':
+			serialize = 1;
+			break;
+		default:
+			usage(argv);
+			exit(1);
+		}
+	}
 
 	printf("FIFO_SIZE = %d\n", FIFO_SIZE);
 	printf("sizeof(struct shm_fifo) = %d\n", sizeof(struct shm_fifo));
 
-#if SERIALIZE
-	rv = sem_init(&reader_sem, 0, 0);
-	if (rv)
-		fatal_perror("sem_init(&reader_sem,...)");
-	rv = sem_init(&writer_sem, 0, 0);
-	if (rv)
-		fatal_perror("sem_init(&writer_sem,...)");
-#endif
+	if (serialize) {
+		rv = sem_init(&reader_sem, 0, 0);
+		if (rv)
+			fatal_perror("sem_init(&reader_sem,...)");
+		rv = sem_init(&writer_sem, 0, 0);
+		if (rv)
+			fatal_perror("sem_init(&writer_sem,...)");
+	}
 
 	rv = fifo_create(&fifo);
 	if (rv)
@@ -186,9 +212,8 @@ int main()
 	if (rv)
 		fatal_perror("pthread_create(&writer)");
 
-#if SERIALIZE
-	sem_post(&writer_sem);
-#endif
+	if (serialize)
+		sem_post(&writer_sem);
 
 	pthread_join(reader, 0);
 	pthread_join(writer, 0);

@@ -10,7 +10,8 @@
 #include <sys/syscall.h>
 #include <errno.h>
 
-#define SETAFFINITY 1
+static
+int setaffinity;
 
 #define BUFFERSIZE 32768
 
@@ -55,9 +56,8 @@ void *reader_thread(void *dummy)
 	memset(xsubi, 0, sizeof(xsubi));
 
 	printf("reader's pid is %d\n", gettid());
-#if SETAFFINITY
-	move_to_cpu(0);
-#endif
+	if (setaffinity)
+		move_to_cpu(0);
 
 	while (1) {
 		unsigned len, i;
@@ -83,9 +83,8 @@ void *writer_thread(void *dummy)
 	memset(xsubi, 0, sizeof(xsubi));
 
 	printf("writer's pid is %d\n", gettid());
-#if SETAFFINITY
-	move_to_cpu(1);
-#endif
+	if (setaffinity)
+		move_to_cpu(1);
 
 	while (count < 300000000U) {
 		unsigned len, i;
@@ -108,11 +107,36 @@ void *writer_thread(void *dummy)
 	return 0;
 }
 
-int main()
+static
+char *usage_text =
+	"Usage: %s [options]\n"
+	"Benchmark in-kernel pipe fifo implementation.\n"
+	"  -a\tset affinity for dual- core or CPU machine\n"
+	"\n";
+
+static
+void usage(char **argv)
+{
+	fprintf(stderr, usage_text, argv[0]);
+}
+
+int main(int argc, char **argv)
 {
 	int rv;
 	pthread_t reader, writer;
 	int pipes[2];
+	int optchar;
+
+	while ((optchar = getopt(argc, argv, "a")) >= 0) {
+		switch (optchar) {
+		case 'a':
+			setaffinity = 1;
+			break;
+		default:
+			usage(argv);
+			exit(1);
+		}
+	}
 
 	rv = pipe(pipes);
 	if (rv)
