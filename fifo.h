@@ -1,15 +1,20 @@
 #ifndef SHM_FIFO_H
 #define SHM_FIFO_H
 
+struct shm_fifo_eventfd_storage {
+	int fd;
+	int write_side_fd;
+};
+
 struct shm_fifo {
 	unsigned head;
 	unsigned tail_wait;
-	int eventfd_head;
+	struct shm_fifo_eventfd_storage head_eventfd;
 
 	__attribute__((aligned(128)))
 	unsigned tail;
 	unsigned head_wait;
-	int eventfd_tail;
+	struct shm_fifo_eventfd_storage tail_eventfd;
 
 	__attribute__((aligned(128)))
 	char data[0];

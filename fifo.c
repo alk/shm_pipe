@@ -16,10 +16,17 @@
 #include "fifo.h"
 
 #define USE_EVENTFD 1
+#define EVENTFD_NONBLOCKING 0
+#define USE_EVENTFD_EMULATION 0
 #define NO_LIBC_EVENTFD
 
 #if USE_EVENTFD
 #include <poll.h>
+
+#if USE_EVENTFD_EMULATION
+typedef uint8_t eventfd_t;
+
+#else /* USE_EVENTFD_EMULATION */
 
 #ifdef NO_LIBC_EVENTFD
 
@@ -30,11 +37,11 @@ int eventfd(unsigned initval, int flags)
 {
 	return syscall(__NR_eventfd, initval, flags);
 }
-
 #else
 #include <sys/eventfd.h>
 
-#endif /* NONLIBC_EVENTFD */
+#endif /* ! NONLIBC_EVENTFD */
+#endif /* ! USE_EVENTFD_EMULATION */
 #else /* ! USE_EVENTFD */
 #include <linux/futex.h>
 #endif
@@ -62,7 +69,7 @@ int file_flags_change(int fd, int and_mask, int or_mask)
 }
 
 static
-int create_eventfd()
+int eventfd_create(struct shm_fifo_eventfd_storage *this)
 {
 	int fd = eventfd(0, 0);
 	if (fd < 0) {
@@ -72,7 +79,14 @@ int create_eventfd()
 #if EVENTFD_NONBLOCKING
 	file_flags_change(fd, -1, O_NONBLOCK);
 #endif
-	return fd;
+	this->fd = fd;
+	return 0;
+}
+
+static
+void eventfd_release(struct shm_fifo_eventfd_storage *this)
+{
+	close(this->fd);
 }
 #endif
 
@@ -83,13 +97,13 @@ int fifo_create(struct shm_fifo **ptr)
 	if (!err) {
 		memset(fifo, 0, offsetof(struct shm_fifo, data));
 #if USE_EVENTFD
-		int fd;
-		fifo->eventfd_head = fd = create_eventfd();
-		if (fd < 0)
+		int rv;
+		rv = eventfd_create(&fifo->head_eventfd);
+		if (rv)
 			goto out_free;
-		fifo->eventfd_tail = fd = create_eventfd();
-		if (fd < 0) {
-			close(fifo->eventfd_head);
+		rv = eventfd_create(&fifo->tail_eventfd);
+		if (rv) {
+			eventfd_release(&fifo->head_eventfd);
 		out_free:
 			free(fifo);
 			return 0;
@@ -119,31 +133,26 @@ void fifo_window_init_writer(struct shm_fifo *fifo, struct fifo_window *window)
 
 #if USE_EVENTFD
 static
-void eventfd_wait(int fd, unsigned *addr, unsigned wait_value)
+void eventfd_wait(struct shm_fifo_eventfd_storage *eventfd, unsigned *addr, unsigned wait_value)
 {
-#if EVENTFD_NONBLOCKING
-	if (sizeof(eventfd_t) > sizeof(struct pollfd))
-		abort();
-#endif
-	AO_nop_full();
+	int fd = eventfd->fd;
 	if (*addr == wait_value) {
 #if EVENTFD_NONBLOCKING
 		struct pollfd wait;
 		wait.fd = fd;
 		wait.events = POLLIN;
 		poll(&wait, 1, -1);
-#else
-		eventfd_t wait;
 #endif
-		read(fd, &wait, sizeof(eventfd_t));
+		eventfd_t tmp;
+		read(fd, &tmp, sizeof(eventfd_t));
 	}
 }
 
 static
-void eventfd_wake(int fd) {
+void eventfd_wake(struct shm_fifo_eventfd_storage *eventfd) {
 	eventfd_t value = 1;
-	AO_nop_full();
-	write(fd, &value, sizeof(value));
+	int fd = eventfd->fd;
+	write(eventfd->fd, &value, sizeof(value));
 }
 
 #else /* !USE_EVENTFD */
@@ -203,7 +212,7 @@ void fifo_window_reader_wait(struct fifo_window *window)
 	fifo->head_wait = head;
 	do {
 #if USE_EVENTFD
-		eventfd_wait(fifo->eventfd_head, &fifo->head, head);
+		eventfd_wait(&fifo->head_eventfd, &fifo->head, head);
 #else
 		futex_wait(&fifo->head, head);
 #endif
@@ -231,7 +240,7 @@ void fifo_window_writer_wait(struct fifo_window *window)
 	fifo->tail_wait = tail;
 	do {
 #if USE_EVENTFD
-		eventfd_wait(fifo->eventfd_tail, &fifo->tail, tail);
+		eventfd_wait(&fifo->tail_eventfd, &fifo->tail, tail);
 #else
 		futex_wait(&fifo->tail, tail);
 #endif
@@ -245,7 +254,7 @@ void shm_fifo_notify_reader(struct shm_fifo *fifo, unsigned old_head)
 	if (fifo->head_wait == old_head) {
 		fifo_reader_wake_count++;
 #if USE_EVENTFD
-		eventfd_wake(fifo->eventfd_head);
+		eventfd_wake(&fifo->head_eventfd);
 #else
 		futex_wake(&fifo->head);
 #endif
@@ -259,7 +268,7 @@ void shm_fifo_notify_writer(struct shm_fifo *fifo, unsigned old_tail)
 	if (fifo->tail_wait == old_tail) {
 		fifo_writer_wake_count++;
 #if USE_EVENTFD
-		eventfd_wake(fifo->eventfd_tail);
+		eventfd_wake(&fifo->tail_eventfd);
 #else
 		futex_wake(&fifo->tail);
 #endif
