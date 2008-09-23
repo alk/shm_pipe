@@ -5,11 +5,13 @@ struct futex_fifo {
 	unsigned head;
 	unsigned tail_wait;
 	int eventfd_head;
-	unsigned __pad1[29];
+
+	__attribute__((aligned(128)))
 	unsigned tail;
 	unsigned head_wait;
 	int eventfd_tail;
-	unsigned __pad2[29];
+
+	__attribute__((aligned(128)))
 	char data[0];
 };
 

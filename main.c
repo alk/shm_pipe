@@ -163,6 +163,7 @@ int main()
 	pthread_t reader, writer;
 
 	printf("FIFO_SIZE = %d\n", FIFO_SIZE);
+	printf("sizeof(struct futex_fifo) = %d\n", sizeof(struct futex_fifo));
 
 #if SERIALIZE
 	rv = sem_init(&reader_sem, 0, 0);
