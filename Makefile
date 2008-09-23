@@ -15,7 +15,7 @@ fifo_eventfd.o : fifo.c fifo.h
 	gcc -DUSE_EVENTFD=1 $(CFLAGS) -c -o $@ $<
 
 fifo_efd_nonblock.o : fifo.c fifo.h
-	gcc -DUSE_EVENTFD=1 -DEVENTFD_NONBLOCKING $(CFLAGS) -c -o $@ $<
+	gcc -DUSE_EVENTFD=1 -DEVENTFD_NONBLOCKING=1 $(CFLAGS) -c -o $@ $<
 
 fifo_eventfd_emulation.o : fifo.c fifo.h
 	gcc -DUSE_EVENTFD=1 -DUSE_EVENTFD_EMULATION=1 $(CFLAGS) -c -o $@ $<
@@ -31,7 +31,7 @@ main_futex : main.o fifo.o
 main_eventfd: main.o fifo_eventfd.o
 	$(LINK) -o $@ $^ -lpthread
 
-main_efd_nonblock: main.o fifo_eventfd.o
+main_efd_nonblock: main.o fifo_efd_nonblock.o
 	$(LINK) -o $@ $^ -lpthread
 
 main_emulation: main.o fifo_eventfd_emulation.o
