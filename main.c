@@ -13,7 +13,7 @@
 #include "fifo.h"
 
 static
-struct futex_fifo *fifo;
+struct shm_fifo *fifo;
 
 #define SETAFFINITY 0
 #define SERIALIZE 0
@@ -163,7 +163,7 @@ int main()
 	pthread_t reader, writer;
 
 	printf("FIFO_SIZE = %d\n", FIFO_SIZE);
-	printf("sizeof(struct futex_fifo) = %d\n", sizeof(struct futex_fifo));
+	printf("sizeof(struct shm_fifo) = %d\n", sizeof(struct shm_fifo));
 
 #if SERIALIZE
 	rv = sem_init(&reader_sem, 0, 0);

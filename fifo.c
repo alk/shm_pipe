@@ -76,12 +76,12 @@ int create_eventfd()
 }
 #endif
 
-int fifo_create(struct futex_fifo **ptr)
+int fifo_create(struct shm_fifo **ptr)
 {
 	int err = posix_memalign((void **)ptr, 4096, FIFO_TOTAL_SIZE);
-	struct futex_fifo *fifo = *ptr;
+	struct shm_fifo *fifo = *ptr;
 	if (!err) {
-		memset(fifo, 0, offsetof(struct futex_fifo, data));
+		memset(fifo, 0, offsetof(struct shm_fifo, data));
 #if USE_EVENTFD
 		int fd;
 		fifo->eventfd_head = fd = create_eventfd();
@@ -101,7 +101,7 @@ int fifo_create(struct futex_fifo **ptr)
 	return err;
 }
 
-void fifo_window_init_reader(struct futex_fifo *fifo, struct fifo_window *window)
+void fifo_window_init_reader(struct shm_fifo *fifo, struct fifo_window *window)
 {
 	window->fifo = fifo;
 	window->reader = 1;
@@ -109,7 +109,7 @@ void fifo_window_init_reader(struct futex_fifo *fifo, struct fifo_window *window
 	window->len = 0;
 }
 
-void fifo_window_init_writer(struct futex_fifo *fifo, struct fifo_window *window)
+void fifo_window_init_writer(struct shm_fifo *fifo, struct fifo_window *window)
 {
 	window->fifo = fifo;
 	window->reader = 0;
@@ -183,7 +183,7 @@ void futex_wake(void *addr)
 
 void fifo_window_reader_wait(struct fifo_window *window)
 {
-	struct futex_fifo *fifo = window->fifo;
+	struct shm_fifo *fifo = window->fifo;
 	unsigned count;
 	unsigned tail;
 	unsigned head;
@@ -212,7 +212,7 @@ void fifo_window_reader_wait(struct fifo_window *window)
 
 void fifo_window_writer_wait(struct fifo_window *window)
 {
-	struct futex_fifo *fifo = window->fifo;
+	struct shm_fifo *fifo = window->fifo;
 	unsigned count;
 	unsigned tail;
 	unsigned head;
@@ -239,7 +239,7 @@ void fifo_window_writer_wait(struct fifo_window *window)
 }
 
 static
-void futex_fifo_notify_reader(struct futex_fifo *fifo, unsigned old_head)
+void shm_fifo_notify_reader(struct shm_fifo *fifo, unsigned old_head)
 {
 	AO_nop_full();
 	if (fifo->head_wait == old_head) {
@@ -253,7 +253,7 @@ void futex_fifo_notify_reader(struct futex_fifo *fifo, unsigned old_head)
 }
 
 static
-void futex_fifo_notify_writer(struct futex_fifo *fifo, unsigned old_tail)
+void shm_fifo_notify_writer(struct shm_fifo *fifo, unsigned old_tail)
 {
 	AO_nop_full();
 	if (fifo->tail_wait == old_tail) {
@@ -287,7 +287,7 @@ unsigned check_window_free_count(struct fifo_window *window, unsigned old_start,
 
 void fifo_window_exchange_reader(struct fifo_window *window)
 {
-	struct futex_fifo *fifo = window->fifo;
+	struct shm_fifo *fifo = window->fifo;
 	unsigned tail = fifo->tail;
 	unsigned free_count = check_window_free_count(window, tail, 1);
 	unsigned head = fifo->head;
@@ -306,12 +306,12 @@ void fifo_window_exchange_reader(struct fifo_window *window)
 	}
 
 	fifo_reader_exchange_count++;
-	futex_fifo_notify_writer(fifo, old_tail);
+	shm_fifo_notify_writer(fifo, old_tail);
 }
 
 void fifo_window_exchange_writer(struct fifo_window *window)
 {
-	struct futex_fifo *fifo = window->fifo;
+	struct shm_fifo *fifo = window->fifo;
 	unsigned head = fifo->head;
 	unsigned free_count = check_window_free_count(window, head, 0);
 	unsigned tail = fifo->tail;
@@ -330,5 +330,5 @@ void fifo_window_exchange_writer(struct fifo_window *window)
 	}
 
 	fifo_writer_exchange_count++;
-	futex_fifo_notify_reader(fifo, old_head);
+	shm_fifo_notify_reader(fifo, old_head);
 }
