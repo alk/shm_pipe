@@ -4,10 +4,12 @@
 struct futex_fifo {
 	unsigned head;
 	unsigned tail_wait;
-	unsigned __pad1[30];
+	int eventfd_head;
+	unsigned __pad1[29];
 	unsigned tail;
 	unsigned head_wait;
-	unsigned __pad2[30];
+	int eventfd_tail;
+	unsigned __pad2[29];
 	char data[0];
 };
 
