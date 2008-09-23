@@ -25,6 +25,18 @@
 
 #define NO_LIBC_EVENTFD
 
+#if USE_EVENTFD_EMULATION && USE_EVENTFD
+char *fifo_implementation_type = "eventfd emulation via pipe(2)";
+#elif USE_EVENTFD
+#if EVENTFD_NONBLOCKING
+char *fifo_implementation_type = "non-blocking eventfd(2)";
+#else
+char *fifo_implementation_type = "eventfd(2)";
+#endif
+#else
+char *fifo_implementation_type = "futex(2)";
+#endif
+
 
 #if USE_EVENTFD
 #include <poll.h>

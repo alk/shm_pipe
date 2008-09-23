@@ -158,6 +158,7 @@ static
 char *usage_text =
 	"Usage: %s [options]\n"
 	"Benchmark shared memory fifo implementation.\n"
+	"This binary has %s fifo implementation.\n"
 	"  -a\tset affinity for dual- core or CPU machine\n"
 	"  -s\tserialize processing for debugging\n"
 	"\n";
@@ -165,7 +166,7 @@ char *usage_text =
 static
 void usage(char **argv)
 {
-	fprintf(stderr, usage_text, argv[0]);
+	fprintf(stderr, usage_text, argv[0], fifo_implementation_type);
 }
 
 int main(int argc, char **argv)

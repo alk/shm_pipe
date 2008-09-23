@@ -81,4 +81,6 @@ void fifo_window_writer_wait(struct fifo_window *window);
 void fifo_window_exchange_writer(struct fifo_window *window);
 void fifo_window_exchange_reader(struct fifo_window *window);
 
+extern char *fifo_implementation_type;
+
 #endif
