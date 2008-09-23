@@ -11,7 +11,7 @@ CFLAGS=-O3 -march=native -fomit-frame-pointer -DAO_USE_PENTIUM4_INSTRS -std=gnu9
 all : main main_pipe
 
 clean:
-	rm main.o fifo.o main
+	rm -f main.o fifo.o main main_pipe main_pipe.o
 
 main.o fifo.o: fifo.h
 
