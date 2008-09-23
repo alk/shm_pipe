@@ -15,7 +15,7 @@
 static
 struct futex_fifo *fifo;
 
-#define SETAFFINITY 1
+#define SETAFFINITY 0
 #define SERIALIZE 0
 
 #if SERIALIZE
