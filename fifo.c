@@ -149,7 +149,8 @@ void eventfd_wait(struct shm_fifo_eventfd_storage *eventfd, unsigned *addr, unsi
 }
 
 static
-void eventfd_wake(struct shm_fifo_eventfd_storage *eventfd) {
+void eventfd_wake(struct shm_fifo_eventfd_storage *eventfd)
+{
 	eventfd_t value = 1;
 	int fd = eventfd->fd;
 	write(eventfd->fd, &value, sizeof(value));
