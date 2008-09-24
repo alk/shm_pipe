@@ -68,11 +68,11 @@ int eventfd(unsigned initval, int flags)
 
 __attribute__((aligned(64)))
 int fifo_reader_exchange_count;
-int fifo_reader_wake_count;
+int fifo_writer_wake_count;
 
 __attribute__((aligned(64)))
 int fifo_writer_exchange_count;
-int fifo_writer_wake_count;
+int fifo_reader_wake_count;
 
 #if USE_EVENTFD
 static __attribute__((unused))
