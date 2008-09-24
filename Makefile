@@ -20,6 +20,15 @@ fifo_efd_nonblock.o : fifo.c fifo.h
 fifo_eventfd_emulation.o : fifo.c fifo.h
 	gcc -DUSE_EVENTFD=1 -DUSE_EVENTFD_EMULATION=1 $(CFLAGS) -c -o $@ $<
 
+fifo_eventfd.s : fifo.c fifo.h
+	gcc -DUSE_EVENTFD=1 $(CFLAGS) -fverbose-asm -S -o $@ $<
+
+fifo_efd_nonblock.s : fifo.c fifo.h
+	gcc -DUSE_EVENTFD=1 -DEVENTFD_NONBLOCKING=1 $(CFLAGS) -fverbose-asm -S -o $@ $<
+
+fifo_eventfd_emulation.s : fifo.c fifo.h
+	gcc -DUSE_EVENTFD=1 -DUSE_EVENTFD_EMULATION=1 $(CFLAGS) -fverbose-asm -S -o $@ $<
+
 clean:
 	rm -f *.o main_futex main_eventfd main_emulation main_pipe main_efd_nonblock
 
