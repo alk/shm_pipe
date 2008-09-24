@@ -226,7 +226,6 @@ static
 void eventfd_wake(struct shm_fifo_eventfd_storage *eventfd)
 {
 	eventfd_t value = 1;
-	int fd = eventfd->fd;
 	write(eventfd->fd, &value, sizeof(value));
 }
 
@@ -272,6 +271,9 @@ void fifo_window_reader_wait(struct fifo_window *window)
 	unsigned tail;
 	unsigned head;
 
+	if (!window->reader)
+		abort();
+
 	tail = fifo->tail;
 	head = fifo->head;
 	if (head - tail != window->len)
@@ -300,6 +302,9 @@ void fifo_window_writer_wait(struct fifo_window *window)
 	unsigned count;
 	unsigned tail;
 	unsigned head;
+
+	if (window->reader)
+		abort();
 
 	tail = fifo->tail;
 	head = fifo->head;
