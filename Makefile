@@ -21,7 +21,7 @@ fifo_eventfd_emulation.o : fifo.c fifo.h
 	gcc -DUSE_EVENTFD=1 -DUSE_EVENTFD_EMULATION=1 $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f *.o main_futex main_eventfd main_emulation main_pipe 
+	rm -f *.o main_futex main_eventfd main_emulation main_pipe main_efd_nonblock
 
 main.o fifo.o: fifo.h
 
