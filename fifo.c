@@ -182,7 +182,7 @@ void fifo_window_init_writer(struct shm_fifo *fifo, struct fifo_window *window)
 static
 void eventfd_wait(struct shm_fifo_eventfd_storage *eventfd, unsigned *addr, unsigned wait_value)
 {
-	AO_nop_read();
+	AO_nop_full();
 	if (*addr != wait_value)
 		return;
 	eventfd_t buf[8];
@@ -208,7 +208,7 @@ void eventfd_wake(struct shm_fifo_eventfd_storage *eventfd)
 static
 void eventfd_wait(struct shm_fifo_eventfd_storage *eventfd, unsigned *addr, unsigned wait_value)
 {
-	AO_nop_read();
+	AO_nop_full();
 	if (*addr != wait_value)
 		return;
 	int fd = eventfd->fd;
