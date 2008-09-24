@@ -15,6 +15,9 @@
 
 #include "fifo.h"
 
+#define likely(cond) __builtin_expect((cond), 1)
+#define unlikely(cond) __builtin_expect((cond), 0)
+
 #ifndef FIFO_OVERRIDE
 
 #define USE_EVENTFD 1
@@ -162,20 +165,32 @@ int fifo_create(struct shm_fifo **ptr)
 	return err;
 }
 
-void fifo_window_init_reader(struct shm_fifo *fifo, struct fifo_window *window)
+static
+int common_fifo_window_init(struct shm_fifo *fifo, struct fifo_window *window,
+			    unsigned min_length, unsigned pull_length, int reader)
 {
 	window->fifo = fifo;
-	window->reader = 1;
-	window->start = fifo->tail % FIFO_SIZE;
+	window->reader = reader;
 	window->len = 0;
+	if (min_length > pull_length)
+		pull_length = min_length;
+	window->min_length = min_length;
+	window->pull_length = pull_length;
+	return 0;
 }
 
-void fifo_window_init_writer(struct shm_fifo *fifo, struct fifo_window *window)
+int fifo_window_init_reader(struct shm_fifo *fifo, struct fifo_window *window,
+			    unsigned min_length, unsigned pull_length)
 {
-	window->fifo = fifo;
-	window->reader = 0;
+	window->start = fifo->tail % FIFO_SIZE;
+	return common_fifo_window_init(fifo, window, min_length, pull_length, 1);
+}
+
+int fifo_window_init_writer(struct shm_fifo *fifo, struct fifo_window *window,
+			    unsigned min_length, unsigned pull_length)
+{
 	window->start = fifo->head % FIFO_SIZE;
-	window->len = 0;
+	return common_fifo_window_init(fifo, window, min_length, pull_length, 0);
 }
 
 #if USE_EVENTFD && USE_EVENTFD_EMULATION
@@ -367,7 +382,7 @@ unsigned check_window_free_count(struct fifo_window *window, unsigned old_start,
 {
 	unsigned start = window->start;
 	unsigned free_count = start - old_start;
-	if (free_count > FIFO_SIZE) {
+	if (unlikely(free_count > FIFO_SIZE)) {
 		fifo_notify_invalid_window(window, reader);
 		abort();
 	}
@@ -376,48 +391,68 @@ unsigned check_window_free_count(struct fifo_window *window, unsigned old_start,
 
 void fifo_window_exchange_reader(struct fifo_window *window)
 {
+	unsigned len;
+again:
+	len = window->len;
 	struct shm_fifo *fifo = window->fifo;
 	unsigned tail = fifo->tail;
 	unsigned free_count = check_window_free_count(window, tail, 1);
-	unsigned head = fifo->head;
 	unsigned old_tail = tail;
 
 	tail += free_count;
 	fifo->tail = tail;
 	window->start = tail;
-	window->len = head - tail;
 
-	if (window->len > FIFO_SIZE) {
+	if (len < window->pull_length)
+		len = window->len = fifo->head - tail;
+
+	if (len > FIFO_SIZE) {
 		fifo_notify_invalid_window(window, 1);
-		fifo->tail = head;
+		fifo->tail = fifo->head;
 		window->len = 0;
 		window->start = tail % FIFO_SIZE;
 	}
 
-	fifo_reader_exchange_count++;
 	shm_fifo_notify_writer(fifo, old_tail);
+
+	if (unlikely(len < window->min_length)) {
+		fifo_window_reader_wait(window);
+		goto again;
+	}
+
+	fifo_reader_exchange_count++;
 }
 
 void fifo_window_exchange_writer(struct fifo_window *window)
 {
+	unsigned len;
+again:
+	len = window->len;
 	struct shm_fifo *fifo = window->fifo;
 	unsigned head = fifo->head;
 	unsigned free_count = check_window_free_count(window, head, 0);
-	unsigned tail = fifo->tail;
 	unsigned old_head = head;
 
 	head += free_count;
 	fifo->head = head;
 	window->start = head;
-	window->len = tail + FIFO_SIZE - head;
 
-	if (window->len > FIFO_SIZE) {
+	if (len < window->pull_length)
+		len = window->len = fifo->tail + FIFO_SIZE - head;
+
+	if (len > FIFO_SIZE) {
 		fifo_notify_invalid_window(window, 0);
-		fifo->head = tail;
+		fifo->head = fifo->tail;
 		window->len = FIFO_SIZE;
 		window->start = head % FIFO_SIZE;
 	}
 
-	fifo_writer_exchange_count++;
 	shm_fifo_notify_reader(fifo, old_head);
+
+	if (unlikely(len < window->min_length)) {
+		fifo_window_writer_wait(window);
+		goto again;
+	}
+
+	fifo_writer_exchange_count++;
 }

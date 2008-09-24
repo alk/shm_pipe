@@ -8,12 +8,12 @@ struct shm_fifo_eventfd_storage {
 
 struct shm_fifo {
 	unsigned head;
-	unsigned tail_wait;
+	unsigned head_wait;
 	struct shm_fifo_eventfd_storage head_eventfd;
 
 	__attribute__((aligned(128)))
 	unsigned tail;
-	unsigned head_wait;
+	unsigned tail_wait;
 	struct shm_fifo_eventfd_storage tail_eventfd;
 
 	__attribute__((aligned(128)))
@@ -23,6 +23,7 @@ struct shm_fifo {
 struct fifo_window {
 	struct shm_fifo *fifo;
 	unsigned start, len;
+	unsigned min_length, pull_length;
 	int reader;
 };
 
@@ -72,8 +73,15 @@ extern int fifo_writer_wake_count;
 
 int fifo_create(struct shm_fifo **ptr);
 
-void fifo_window_init_reader(struct shm_fifo *fifo, struct fifo_window *window);
-void fifo_window_init_writer(struct shm_fifo *fifo, struct fifo_window *window);
+int fifo_window_init_reader(struct shm_fifo *fifo,
+			    struct fifo_window *window,
+			    unsigned min_length,
+			    unsigned pull_length);
+
+int fifo_window_init_writer(struct shm_fifo *fifo,
+			    struct fifo_window *window,
+			    unsigned min_length,
+			    unsigned pull_length);
 
 void fifo_window_reader_wait(struct fifo_window *window);
 void fifo_window_writer_wait(struct fifo_window *window);

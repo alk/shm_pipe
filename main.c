@@ -56,7 +56,7 @@ void move_to_cpu(int number)
 		fatal_perror("sched_setaffinity");
 }
 
-#define READER_BATCH 4096
+#define READER_BATCH 256
 
 static
 void *reader_thread(void *dummy)
@@ -74,7 +74,7 @@ void *reader_thread(void *dummy)
 	if (serialize)
 		sem_wait(&reader_sem);
 
-	fifo_window_init_reader(fifo, &window);
+	fifo_window_init_reader(fifo, &window, 0, READER_BATCH*sizeof(int)*2);
 	while (1) {
 		int *ptr;
 		unsigned len, i;
@@ -106,7 +106,7 @@ void *reader_thread(void *dummy)
 	return (void *)(intptr_t)sum;
 }
 
-#define WRITER_BATCH 4096
+#define WRITER_BATCH 256
 
 static
 void *writer_thread(void *dummy)
@@ -123,7 +123,7 @@ void *writer_thread(void *dummy)
 	if (serialize)
 		sem_wait(&writer_sem);
 
-	fifo_window_init_writer(fifo, &window);
+	fifo_window_init_writer(fifo, &window, 4, WRITER_BATCH*sizeof(int)*2);
 	while (count < 300000000U) {
 		int *ptr;
 		unsigned len, i;
@@ -132,11 +132,6 @@ void *writer_thread(void *dummy)
 		if (serialize) {
 			sem_post(&reader_sem);
 			sem_wait(&writer_sem);
-		}
-
-		if (window.len < 4) {
-			fifo_window_writer_wait(&window);
-			continue;
 		}
 
 		ptr = fifo_window_peek_span(&window, &len);
