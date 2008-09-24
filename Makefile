@@ -1,6 +1,6 @@
 
-#CFLAGS=-O0 -Wall -pedantic -ggdb3 -std=gnu99
-CFLAGS=-m32 -O3 -march=native -fomit-frame-pointer -DAO_USE_PENTIUM4_INSTRS -std=gnu99 -DFIFO_OVERRIDE
+CFLAGS=-O0 -Wall -pedantic -ggdb3 -std=gnu99 -DFIFO_OVERRIDE
+#CFLAGS=-m32 -O3 -march=native -fomit-frame-pointer -DAO_USE_PENTIUM4_INSTRS -std=gnu99 -DFIFO_OVERRIDE
 LINK=gcc -m32 -static
 
 %.o : %.c
@@ -28,6 +28,9 @@ fifo_efd_nonblock.s : fifo.c fifo.h
 
 fifo_eventfd_emulation.s : fifo.c fifo.h
 	gcc -DUSE_EVENTFD=1 -DUSE_EVENTFD_EMULATION=1 $(CFLAGS) -fverbose-asm -S -o $@ $<
+
+main_pipe.o : main.c
+	gcc -DUSE_PIPE=1 $(CFLAGS) -c -o $@ $<
 
 clean:
 	rm -f *.o main_futex main_eventfd main_emulation main_pipe main_efd_nonblock
