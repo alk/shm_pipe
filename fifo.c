@@ -138,9 +138,18 @@ void eventfd_release(struct shm_fifo_eventfd_storage *this)
 #endif /* !USE_EVENTFD_EMULATION */
 #endif /* USE_EVENTFD */
 
-int fifo_create(struct shm_fifo **ptr)
+#define MAX_ORDER 18
+#define MIN_ORDER 12
+
+int fifo_create(struct shm_fifo **ptr, int order)
 {
-	int err = posix_memalign((void **)ptr, 4096, FIFO_TOTAL_SIZE);
+	if (order < MIN_ORDER)
+		order = MIN_ORDER;
+	else if (order > MAX_ORDER)
+		return -EINVAL;
+	int fifo_size = 1<<order;
+	int alloc_size = fifo_size + sizeof(struct shm_fifo);
+	int err = posix_memalign((void **)ptr, 4096, alloc_size);
 	struct shm_fifo *fifo = *ptr;
 	if (!err) {
 		memset(fifo, 0, offsetof(struct shm_fifo, data));
@@ -161,6 +170,7 @@ int fifo_create(struct shm_fifo **ptr)
 #endif // USE_EVENTFD
 	}
 	fifo->head_wait = fifo->tail_wait = 0xffffffff;
+	fifo->fifo_size = fifo_size;
 
 	return err;
 }
