@@ -12,6 +12,10 @@
 
 #include "fifo.h"
 
+#ifdef JUST_MEMCPY
+#define nrand48(dummy) 0
+#endif
+
 static
 struct shm_fifo *fifo;
 
