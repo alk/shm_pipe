@@ -1,0 +1,38 @@
+All this code is under public domain.
+
+This is my old experiment with shared-memory transport. It uses some
+linux-specific facilities (futex & eventfd) and compares throughput of
+shared memory 'pipe' (zero-copy) versus plain pipe (obviosly, copying).
+
+You'll need libatomic-ops-dev and recent-enough Linux. But pipe
+eventfd emulation should be compile-able on any Unix. And you may need
+to tweak Makefile a bit.
+
+Quite surpisingly, even minimal data processing pretty much negates
+speed benefits of zero-copy shared memory transport (remove
+JUST_MEMCPY define to see youself).
+
+Another interesing thing is that old wakeup-via-pipe trick (used by
+main_emulation) is not so much slower than efficent eventfd (0.44
+seconds vs. 0.33 seconds).
+
+My results: piping 300000000 (300 megs) of data takes:
+
+./main_pipe (plain read & write to/from pipe)
+~0.68 sec
+
+./main_emulation (portable eventfd emulation via pipe)
+~0.44 sec
+
+./main_futex (futex variant)
+~0.93 sec
+
+./main_eventfd (eventfd variant 1)
+~0.40
+
+./main_efd_nonblock (eventfd variant 2)
+~0.33
+
+A bit more elaborate processing of data (generation & verification via
+nrand48) gives times around 10 sec, where difference between pipe
+implementation doesn't matter that much.
