@@ -20,8 +20,6 @@ struct shm_fifo {
 	char data[0];
 };
 
-/* window reflects portion of fifo that's owned by either producer
- * (i.e. to write to) or by consumer (i.e. to read from) */
 struct fifo_window {
 	struct shm_fifo *fifo;
 	unsigned start, len;
@@ -56,9 +54,6 @@ void fifo_window_eat_span(struct fifo_window *window, unsigned span_len)
 	window->len -= span_len;
 }
 
-/* extends windows as far as possible. For producer it's as far as
- * free space (and cyclic-ness of buffer) allows. For consumer it's as
- * far as data is produced (and cyclic-ness of buffer too) */
 static inline
 void *fifo_window_get_span(struct fifo_window *window, unsigned *span_len)
 {
@@ -88,13 +83,9 @@ int fifo_window_init_writer(struct shm_fifo *fifo,
 			    unsigned min_length,
 			    unsigned pull_length);
 
-/* sleep until there's more data or free space to grab via
- * window_get_span */
 void fifo_window_reader_wait(struct fifo_window *window);
 void fifo_window_writer_wait(struct fifo_window *window);
 
-/* release either free space (consumed data) or filled space (produced
- * data) */
 void fifo_window_exchange_writer(struct fifo_window *window);
 void fifo_window_exchange_reader(struct fifo_window *window);
 
