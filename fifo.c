@@ -295,7 +295,6 @@ void fifo_window_reader_wait(struct fifo_window *window)
 		return;
 
 	for (count = SPIN_COUNT; count > 0; count--) {
-		abort();
 		AO_nop_full();
 		if (fifo->head != head)
 			return;
