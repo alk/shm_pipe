@@ -1,5 +1,6 @@
 #ifndef SHM_FIFO_H
 #define SHM_FIFO_H
+#include <stdint.h>
 
 struct shm_fifo_eventfd_storage {
 	int fd;
@@ -66,10 +67,12 @@ void *fifo_window_get_span(struct fifo_window *window, unsigned *span_len)
 	return rv;
 }
 
-extern int fifo_reader_exchange_count;
-extern int fifo_writer_exchange_count;
-extern int fifo_reader_wake_count;
-extern int fifo_writer_wake_count;
+extern int64_t fifo_reader_exchange_count;
+extern int64_t fifo_writer_exchange_count;
+extern int64_t fifo_reader_wake_count;
+extern int64_t fifo_writer_wake_count;
+extern int64_t fifo_reader_wait_spins;
+extern int64_t fifo_writer_wait_spins;
 
 int fifo_create(struct shm_fifo **ptr);
 

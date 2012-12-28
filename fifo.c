@@ -70,12 +70,14 @@ int eventfd(unsigned initval, int flags)
 #define SPIN_COUNT 256
 
 __attribute__((aligned(64)))
-int fifo_reader_exchange_count;
-int fifo_writer_wake_count;
+int64_t fifo_reader_exchange_count;
+int64_t fifo_writer_wake_count;
+int64_t fifo_reader_wait_spins;
 
 __attribute__((aligned(64)))
-int fifo_writer_exchange_count;
-int fifo_reader_wake_count;
+int64_t fifo_writer_exchange_count;
+int64_t fifo_reader_wake_count;
+int64_t fifo_writer_wait_spins;
 
 #if USE_EVENTFD
 static __attribute__((unused))
@@ -296,10 +298,14 @@ void fifo_window_reader_wait(struct fifo_window *window)
 
 	for (count = SPIN_COUNT; count > 0; count--) {
 		AO_nop_full();
-		if (fifo->head != head)
+		if (fifo->head != head) {
+			fifo_reader_wait_spins += SPIN_COUNT - count;
 			return;
+		}
 	}
-	
+
+	fifo_reader_wait_spins += SPIN_COUNT - count;
+
 	fifo->head_wait = head;
 	do {
 #if USE_EVENTFD
@@ -327,10 +333,12 @@ void fifo_window_writer_wait(struct fifo_window *window)
 
 	for (count = SPIN_COUNT; count > 0; count--) {
 		AO_nop_full();
-		if (fifo->tail != tail)
+		if (fifo->tail != tail) {
+			fifo_writer_wait_spins += SPIN_COUNT - count;
 			return;
+		}
 	}
-	
+	fifo_writer_wait_spins += SPIN_COUNT - count;
 	fifo->tail_wait = tail;
 	do {
 #if USE_EVENTFD

@@ -232,6 +232,8 @@ int main(int argc, char **argv)
 	printf("fifo_writer_wake_count = %d\n", fifo_writer_wake_count);
 	printf("fifo_reader_exchange_count = %d\n", fifo_reader_exchange_count);
 	printf("fifo_reader_wake_count = %d\n", fifo_reader_wake_count);
+	printf("fifo_reader_wait_spins = %d\n", fifo_reader_wait_spins);
+	printf("fifo_writer_wait_spins = %d\n", fifo_writer_wait_spins);
 
 	return 0;
 }
