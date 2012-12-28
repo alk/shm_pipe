@@ -73,6 +73,8 @@ extern int64_t fifo_reader_wake_count;
 extern int64_t fifo_writer_wake_count;
 extern int64_t fifo_reader_wait_spins;
 extern int64_t fifo_writer_wait_spins;
+extern int64_t fifo_reader_wait_calls;
+extern int64_t fifo_writer_wait_calls;
 
 int fifo_create(struct shm_fifo **ptr);
 

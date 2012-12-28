@@ -73,11 +73,13 @@ __attribute__((aligned(64)))
 int64_t fifo_reader_exchange_count;
 int64_t fifo_writer_wake_count;
 int64_t fifo_reader_wait_spins;
+int64_t fifo_reader_wait_calls;
 
 __attribute__((aligned(64)))
 int64_t fifo_writer_exchange_count;
 int64_t fifo_reader_wake_count;
 int64_t fifo_writer_wait_spins;
+int64_t fifo_writer_wait_calls;
 
 #if USE_EVENTFD
 static __attribute__((unused))
@@ -296,10 +298,12 @@ void fifo_window_reader_wait(struct fifo_window *window)
 	if (head - tail != window->len)
 		return;
 
+	fifo_reader_wait_calls++;
+
 	for (count = SPIN_COUNT; count > 0; count--) {
 		AO_nop_full();
 		if (fifo->head != head) {
-			fifo_reader_wait_spins += SPIN_COUNT - count;
+			fifo_reader_wait_spins += SPIN_COUNT - count + 1;
 			return;
 		}
 	}
@@ -331,10 +335,12 @@ void fifo_window_writer_wait(struct fifo_window *window)
 	if (tail + FIFO_SIZE - head != window->len)
 		return;
 
+	fifo_writer_wait_calls++;
+
 	for (count = SPIN_COUNT; count > 0; count--) {
 		AO_nop_full();
 		if (fifo->tail != tail) {
-			fifo_writer_wait_spins += SPIN_COUNT - count;
+			fifo_writer_wait_spins += SPIN_COUNT - count + 1;
 			return;
 		}
 	}
