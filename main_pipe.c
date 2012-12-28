@@ -18,6 +18,7 @@ static
 int setaffinity;
 
 #define BUFFERSIZE 32768
+#define SEND_BYTES 2000000000U
 
 int reader_buffer[BUFFERSIZE/sizeof(int)];
 int writer_buffer[BUFFERSIZE/sizeof(int)];
@@ -90,10 +91,13 @@ void *writer_thread(void *dummy)
 	if (setaffinity)
 		move_to_cpu(1);
 
-	while (count < 300000000U) {
+	while (count < SEND_BYTES) {
 		unsigned len, i;
 
-		for (i=0;i<BUFFERSIZE/sizeof(int);i++,count++)
+		len = BUFFERSIZE/sizeof(int);
+		len = (len > SEND_BYTES - count) ? SEND_BYTES - count : len;
+		count += len;
+		for (i=0;i<len;i++)
 			writer_buffer[i] = nrand48(xsubi);
 		i *= sizeof(int);
 		while (i > 0) {
@@ -105,7 +109,6 @@ void *writer_thread(void *dummy)
 			}
 			i -= len;
 		}
-		
 	}
 	close(write_fd);
 	return 0;

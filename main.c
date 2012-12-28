@@ -16,6 +16,10 @@
 #define nrand48(dummy) 0
 #endif
 
+#define READER_BATCH 1024
+#define WRITER_BATCH 1024
+#define SEND_WORDS 2000000000U
+
 static
 struct shm_fifo *fifo;
 
@@ -60,7 +64,6 @@ void move_to_cpu(int number)
 		fatal_perror("sched_setaffinity");
 }
 
-#define READER_BATCH 256
 
 static
 void *reader_thread(void *dummy)
@@ -90,7 +93,7 @@ void *reader_thread(void *dummy)
 
 		fifo_window_exchange_reader(&window);
 
-		if (window.len < 4) {
+		if (window.len == 0) {
 			if (done_flag)
 				break;
 			fifo_window_reader_wait(&window);
@@ -103,14 +106,14 @@ void *reader_thread(void *dummy)
 			len = READER_BATCH;
 		fifo_window_eat_span(&window, len*sizeof(int));
 
-		for (i = 0; i < len; i++, count++)
-			sum |= ptr[i] ^  nrand48(xsubi);
+		for (i = 0; i < len; i++)
+			sum |= *ptr++ ^ nrand48(xsubi);
+		count += i;
 	}
 	printf("sum = 0x%08x\ncount = %lld\n", sum, count);
 	return (void *)(intptr_t)sum;
 }
 
-#define WRITER_BATCH 256
 
 static
 void *writer_thread(void *dummy)
@@ -128,7 +131,7 @@ void *writer_thread(void *dummy)
 		sem_wait(&writer_sem);
 
 	fifo_window_init_writer(fifo, &window, 4, WRITER_BATCH*sizeof(int)*2);
-	while (count < 300000000U) {
+	while (count < SEND_WORDS) {
 		int *ptr;
 		unsigned len, i;
 		fifo_window_exchange_writer(&window);
@@ -142,10 +145,17 @@ void *writer_thread(void *dummy)
 		len /= sizeof(int);
 		if (len > WRITER_BATCH)
 			len = WRITER_BATCH;
+		count += len;
+		if (count > SEND_WORDS) {
+			count -= len;
+			len = SEND_WORDS - count;
+			count += len;
+		}
 		fifo_window_eat_span(&window, len*sizeof(int));
-		for (i=0;i<len;i++,count++)
-			ptr[i] = nrand48(xsubi);
+		for (i=0;i<len;i++)
+			*ptr++ = nrand48(xsubi);
 	}
+	fprintf(stderr, "writer count %u\n", count);
 	done_flag = 1;
 	fifo_window_exchange_writer(&window);
 	if (serialize)
