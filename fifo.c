@@ -67,7 +67,7 @@ int eventfd(unsigned initval, int flags)
 #include <linux/futex.h>
 #endif
 
-#define SPIN_COUNT 0
+#define SPIN_COUNT 256
 
 __attribute__((aligned(64)))
 int fifo_reader_exchange_count;
