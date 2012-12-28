@@ -1,7 +1,7 @@
 
 #CFLAGS=-O0 -Wall -pedantic -ggdb3 -std=gnu99
-CFLAGS=-m32 -O3 -march=native -fomit-frame-pointer -DAO_USE_PENTIUM4_INSTRS -std=gnu99 -DFIFO_OVERRIDE -DJUST_MEMCPY
-LINK=gcc -m32 -static
+CFLAGS=-m32 -flto -O3 -march=native -ggdb3 -DAO_USE_PENTIUM4_INSTRS -std=gnu99 -DFIFO_OVERRIDE -DJUST_MEMCPY
+LINK=gcc -m32 -flto -O3 -march=native -ggdb3
 
 %.o : %.c
 	gcc $(CFLAGS) -c -o $@ $<
