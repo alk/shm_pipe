@@ -21,6 +21,11 @@ struct shm_fifo {
 	char data[0];
 };
 
+/* fifo_window reflects portion of fifo currently owned by reader or
+ * writer. Start of window can be advanced by fifo_window_eat_span
+ * (but note it won't be passed to reader/writer until next exchange
+ * call). Actual pointer is retrieved by calling either
+ * fifo_window_peek_span or fifo_window_get_span */
 struct fifo_window {
 	struct shm_fifo *fifo;
 	unsigned start, len;
@@ -32,6 +37,8 @@ struct fifo_window {
 
 #define FIFO_SIZE (FIFO_TOTAL_SIZE-sizeof(struct shm_fifo))
 
+/* returns pointer and length of linear portion of window that's
+ * available for consuming or producing */
 static inline
 void *fifo_window_peek_span(struct fifo_window *window, unsigned *span_len)
 {
@@ -47,6 +54,11 @@ void *fifo_window_peek_span(struct fifo_window *window, unsigned *span_len)
 	return p;
 }
 
+/* advanced start of window by span_len. I.e. next call to peek will
+ * point to byte after span_len in window. Note, that
+ * produced/consumed portion released through this call _will not be_
+ * passed back to fifo until next call to
+ * fifo_window_exchange_{writer,reader} */
 static inline
 void fifo_window_eat_span(struct fifo_window *window, unsigned span_len)
 {
@@ -55,6 +67,9 @@ void fifo_window_eat_span(struct fifo_window *window, unsigned span_len)
 	window->len -= span_len;
 }
 
+/* combines peek and eat in convenient single call. Note: next call to
+ * fifo_window_exchange_{reader,writer} will pass data returned by
+ * this call to fifo, essentially invalidating it */
 static inline
 void *fifo_window_get_span(struct fifo_window *window, unsigned *span_len)
 {
@@ -78,6 +93,10 @@ extern int64_t fifo_writer_wait_calls;
 
 int fifo_create(struct shm_fifo **ptr);
 
+/* inits window. min_length arg is size of window below which it'll
+ * automatically wait for more in exchange call. pull_length arg is
+ * size of window below which it'll attempt to grab all available
+ * data/free-space in exchange call */
 int fifo_window_init_reader(struct shm_fifo *fifo,
 			    struct fifo_window *window,
 			    unsigned min_length,
@@ -88,9 +107,16 @@ int fifo_window_init_writer(struct shm_fifo *fifo,
 			    unsigned min_length,
 			    unsigned pull_length);
 
+/* waits until more data or space is available for consuming or
+ * producing. Note: it won't actually advance len of window, it has to
+ * be done via call to exchange below */
 void fifo_window_reader_wait(struct fifo_window *window);
 void fifo_window_writer_wait(struct fifo_window *window);
 
+/* releases "eaten" (i.e. consumed by consumer or produced by
+ * producer) portion of window back to fifo and (depending on window
+ * pull_length and min_length options) gets fresh data/free-space from
+ * fifo */
 void fifo_window_exchange_writer(struct fifo_window *window);
 void fifo_window_exchange_reader(struct fifo_window *window);
 
